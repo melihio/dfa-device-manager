@@ -14,144 +14,191 @@ var app = builder.Build();
 
 app.UseHttpsRedirection();
 
-
-app.MapGet("/api/devices/", (DfaDeviceManagerContext context) =>
+app.MapGet("/api/devices", async (DfaDeviceManagerContext context) =>
 {
-    var devices = new List<DeviceDto>();
-    foreach (var d in context.Devices)
+    try
     {
-        devices.Add(new DeviceDto(d.Id, d.Name));
+        var devices = await context.Devices
+            .Select(d => new DeviceDto(d.Id, d.Name))
+            .ToListAsync();
+
+        return Results.Ok(devices);
     }
-    return Results.Ok(devices);
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
 });
+
 
 
 app.MapGet("/api/devices/{id}", async (DfaDeviceManagerContext context, int id) =>
 {
-    var device = await context.Devices
-        .Include(d => d.DeviceType)
-        .Include(d => d.DeviceEmployees.Where(de => de.ReturnDate == null))
-        .ThenInclude(de => de.Employee)
-        .ThenInclude(e => e.Person)
-        .FirstOrDefaultAsync(d => d.Id == id);
+    try{
+        var device = await context.Devices
+            .Include(d => d.DeviceType)
+            .Include(d => d.DeviceEmployees.Where(de => de.ReturnDate == null))
+            .ThenInclude(de => de.Employee)
+            .ThenInclude(e => e.Person)
+            .FirstOrDefaultAsync(d => d.Id == id);
 
-    if (device == null)
-        return Results.NotFound();
+        if (device == null)
+            return Results.NotFound();
 
-    var currentEmployee = device.DeviceEmployees.FirstOrDefault()?.Employee;
+        var currentEmployee = device.DeviceEmployees.FirstOrDefault()?.Employee;
 
-    var dto = new DeviceDetailsDto
-    {
-        Name = device.Name,
-        DeviceTypeName = device.DeviceType?.Name ?? "Unknown",
-        IsEnabled = device.IsEnabled,
-        AdditionalProperties = JsonSerializer.Deserialize<object>(device.AdditionalProperties ?? "{}"),
-        CurrentEmployee = currentEmployee == null ? null : new CurrentEmployeeDto
+        var dto = new DeviceDetailsDto
         {
-            Id = currentEmployee.Id,
-            Name = $"{currentEmployee.Person.FirstName} {currentEmployee.Person.LastName}"
-        }
-    };
+            Name = device.Name,
+            DeviceTypeName = device.DeviceType?.Name ?? "Unknown",
+            IsEnabled = device.IsEnabled,
+            AdditionalProperties = JsonSerializer.Deserialize<object>(device.AdditionalProperties ?? "{}"),
+            CurrentEmployee = currentEmployee == null ? null : new CurrentEmployeeDto
+            {
+                Id = currentEmployee.Id,
+                Name = $"{currentEmployee.Person.FirstName} {currentEmployee.Person.LastName}"
+            }
+        };
 
-    return Results.Ok(dto);
+        return Results.Ok(dto);
+    }
+    catch(Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
 });
 
 
 app.MapPost("/api/devices", async (DfaDeviceManagerContext context, CreateDeviceDto dto) =>
 {
-    var deviceType = await context.DeviceTypes
-        .FirstOrDefaultAsync(dt => dt.Name == dto.DeviceTypeName);
-
-    if (deviceType == null)
-        return Results.BadRequest("Device type does not exist.");
-
-    var created = new Device
+    try
     {
-        Name = dto.Name,
-        IsEnabled = dto.IsEnabled,
-        AdditionalProperties = JsonSerializer.Serialize(dto.AdditionalProperties),
-        DeviceTypeId = deviceType.Id
-    };
+        var deviceType = await context.DeviceTypes
+            .FirstOrDefaultAsync(dt => dt.Name == dto.DeviceTypeName);
 
-    context.Devices.Add(created);
-    await context.SaveChangesAsync();
+        if (deviceType == null)
+            return Results.BadRequest("Device type does not exist.");
 
-    return Results.Created($"/api/devices/{created.Id}", new { created.Id });
+        var created = new Device
+        {
+            Name = dto.Name,
+            IsEnabled = dto.IsEnabled,
+            AdditionalProperties = JsonSerializer.Serialize(dto.AdditionalProperties),
+            DeviceTypeId = deviceType.Id
+        };
+
+        context.Devices.Add(created);
+        await context.SaveChangesAsync();
+
+        return Results.Created($"/api/devices/{created.Id}", new { created.Id });
+    }
+    catch(Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
 });
 
 
 app.MapPut("/api/devices/{id}", async (DfaDeviceManagerContext context, int id, CreateDeviceDto dto) =>
 {
-    var device = await context.Devices.FindAsync(id);
-    if (device == null)
-        return Results.NotFound();               
-    
-    var deviceType = await context.DeviceTypes
-        .FirstOrDefaultAsync(dt => dt.Name == dto.DeviceTypeName);
-    if (deviceType == null)
-        return Results.BadRequest("Device type does not exist.");
-    
-    device.Name                 = dto.Name;
-    device.IsEnabled            = dto.IsEnabled;
-    device.AdditionalProperties = JsonSerializer.Serialize(dto.AdditionalProperties);
-    device.DeviceTypeId         = deviceType.Id;
-    
-    await context.SaveChangesAsync();
-    
-    return Results.NoContent();
+    try
+    {
+        var device = await context.Devices.FindAsync(id);
+        if (device == null)
+            return Results.NotFound();               
+        
+        var deviceType = await context.DeviceTypes
+            .FirstOrDefaultAsync(dt => dt.Name == dto.DeviceTypeName);
+        if (deviceType == null)
+            return Results.BadRequest("Device type does not exist.");
+        
+        device.Name                 = dto.Name;
+        device.IsEnabled            = dto.IsEnabled;
+        device.AdditionalProperties = JsonSerializer.Serialize(dto.AdditionalProperties);
+        device.DeviceTypeId         = deviceType.Id;
+        
+        await context.SaveChangesAsync();
+        
+        return Results.NoContent();
+    }
+    catch(Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
 });
 
 app.MapDelete("/api/devices/{id}", async (DfaDeviceManagerContext context, int id) =>
 {
-    var device = await context.Devices.FindAsync(id);
-    if (device == null)
-        return Results.NotFound();
+    try
+    {
+        var device = await context.Devices.FindAsync(id);
+        if (device == null)
+            return Results.NotFound();
 
-    context.Devices.Remove(device);
-    await context.SaveChangesAsync();
-    
-    return Results.NoContent();
+        context.Devices.Remove(device);
+        await context.SaveChangesAsync();
+        
+        return Results.NoContent();
+    }
+    catch(Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
 });
 
 app.MapGet("/api/employees", async (DfaDeviceManagerContext context) =>
 {
-    var list = await context.Employees
-        .Include(e => e.Person)
-        .Select(e => new EmployeeListDto {
-            Id = e.Id,
-            FullName = $"{e.Person.FirstName} {(string.IsNullOrEmpty(e.Person.MiddleName) ? "" : e.Person.MiddleName + " ")}{e.Person.LastName}"
-        })
-        .ToListAsync();
+    try
+    {
+        var list = await context.Employees
+            .Include(e => e.Person)
+            .Select(e => new EmployeeListDto {
+                Id = e.Id,
+                FullName = $"{e.Person.FirstName} {(string.IsNullOrEmpty(e.Person.MiddleName) ? "" : e.Person.MiddleName + " ")}{e.Person.LastName}"
+            })
+            .ToListAsync();
 
-    return Results.Ok(list);
+        return Results.Ok(list);
+    }
+    catch(Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
 });
 
 app.MapGet("/api/employees/{id}", async (DfaDeviceManagerContext context, int id) =>
 {
-    var emp = await context.Employees
-        .Include(e => e.Person)
-        .Include(e => e.Position)
-        .Where(e => e.Id == id)
-        .Select(e => new EmployeeDetailDto {
-            PersonId = e.Person.Id,
-            PassportNumber = e.Person.PassportNumber,
-            FirstName = e.Person.FirstName,
-            MiddleName = e.Person.MiddleName,
-            LastName = e.Person.LastName,
-            PhoneNumber = e.Person.PhoneNumber,
-            Email = e.Person.Email,
-            Salary = e.Salary,
-            HireDate = e.HireDate,
-            Position = new PositionDto {
-                Id = e.Position.Id,
-                Name = e.Position.Name
-            }
-        })
-        .FirstOrDefaultAsync();
+    try
+    {
+        var emp = await context.Employees
+            .Include(e => e.Person)
+            .Include(e => e.Position)
+            .Where(e => e.Id == id)
+            .Select(e => new EmployeeDetailDto {
+                PersonId = e.Person.Id,
+                PassportNumber = e.Person.PassportNumber,
+                FirstName = e.Person.FirstName,
+                MiddleName = e.Person.MiddleName,
+                LastName = e.Person.LastName,
+                PhoneNumber = e.Person.PhoneNumber,
+                Email = e.Person.Email,
+                Salary = e.Salary,
+                HireDate = e.HireDate,
+                Position = new PositionDto {
+                    Id = e.Position.Id,
+                    Name = e.Position.Name
+                }
+            })
+            .FirstOrDefaultAsync();
 
-    return emp is null
-        ? Results.NotFound()
-        : Results.Ok(emp);
+        return emp is null
+            ? Results.NotFound()
+            : Results.Ok(emp);
+    }
+    catch(Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
 });
 
 app.Run();
