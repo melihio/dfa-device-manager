@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using dfa_device_manager.API;
 using dfa_device_manager.API.DTOs.DeviceDtos;
@@ -68,35 +69,46 @@ app.MapGet("/api/devices/{id}", async (DfaDeviceManagerContext context, int id) 
     }
 });
 
-
 app.MapPost("/api/devices", async (DfaDeviceManagerContext context, CreateDeviceDto dto) =>
 {
     try
     {
+        if (string.IsNullOrWhiteSpace(dto.Name) ||
+            string.IsNullOrWhiteSpace(dto.DeviceTypeName) ||
+            dto.AdditionalProperties.ValueKind == JsonValueKind.Undefined)
+        {
+            throw new JsonException();
+        }
+
+        var propsJson = JsonSerializer.Serialize(dto.AdditionalProperties);
+
         var deviceType = await context.DeviceTypes
             .FirstOrDefaultAsync(dt => dt.Name == dto.DeviceTypeName);
-
-        if (deviceType == null)
-            return Results.BadRequest("Device type does not exist.");
 
         var created = new Device
         {
             Name = dto.Name,
             IsEnabled = dto.IsEnabled,
-            AdditionalProperties = JsonSerializer.Serialize(dto.AdditionalProperties),
+            AdditionalProperties = propsJson,
             DeviceTypeId = deviceType.Id
         };
 
         context.Devices.Add(created);
         await context.SaveChangesAsync();
 
-        return Results.Created($"/api/devices/{created.Id}", new { created.Id });
+        return Results.Created($"/api/devices/{created.Id}", new { id = created.Id });
     }
-    catch(Exception ex)
+    catch (JsonException)
     {
-        return Results.Problem(ex.Message);
+        return Results.BadRequest("Bad request");
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(detail: ex.Message);
     }
 });
+
+
 
 
 app.MapPut("/api/devices/{id}", async (DfaDeviceManagerContext context, int id, CreateDeviceDto dto) =>

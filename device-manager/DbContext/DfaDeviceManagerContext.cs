@@ -16,19 +16,11 @@ public partial class DfaDeviceManagerContext : DbContext
     }
 
     public virtual DbSet<Device> Devices { get; set; }
-
     public virtual DbSet<DeviceEmployee> DeviceEmployees { get; set; }
-
     public virtual DbSet<DeviceType> DeviceTypes { get; set; }
-
     public virtual DbSet<Employee> Employees { get; set; }
-
     public virtual DbSet<Person> People { get; set; }
-
     public virtual DbSet<Position> Positions { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseSqlServer("Name=DefaultConnection");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
