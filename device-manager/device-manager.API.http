@@ -1,0 +1,6 @@
+@dfa_device_manager.API_HostAddress = http://localhost:5139
+
+GET {{dfa_device_manager.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
