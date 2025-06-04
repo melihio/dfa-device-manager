@@ -8,9 +8,16 @@ The application requires a connection string to connect to a SQL Server database
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=<HOST>;Database=<DATABASE>;User Id=<USERNAME>;Password=<PASSWORD>;TrustServerCertificate=True;"
+    "DefaultConnection": "Server=<Host>,<Port>;Database=<DatabaseName>;User Id=<Username>;Password=<Password>;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "Key": <256-BIT-SECRET>,
+    "Issuer": <Issuer>,
+    "Audience": <Audience>,
+    "ExpireMinutes": <TimeInMinutes>
   },
 }
+
 ```
 
 ## Why Not Multiple Projects?
@@ -31,3 +38,13 @@ The application requires a connection string to connect to a SQL Server database
 * **Employees**
     * `GET /api/employees`
     * `GET /api/employees/{id}`
+* **Auth**
+    * `POST /api/auth`
+* **Accounts**
+    * `POST /api/accounts`
+    * `GET /api/accounts`
+    * `GET /api/accounts/{id}`
+    * `PUT /api/accounts/{id}`
+    * `DELETE /api/accounts/{id}`
+    * `GET /api/accounts/me`
+    * `PUT /api/accounts/me`
