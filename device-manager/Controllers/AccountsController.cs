@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using dfa_device_manager.API.DTOs.Account;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,7 +19,7 @@ public class AccountsController : ControllerBase
         _context = context;
         _config  = config;
     }
-    
+
     [HttpPost]
     [AllowAnonymous]
     public async Task<IActionResult> Register([FromBody] CreateAccountDto dto)
@@ -34,8 +35,8 @@ public class AccountsController : ControllerBase
             return NotFound("Employee not found.");
 
         var userRole = await _context.Roles.SingleAsync(r => r.Name == "User");
-        
-        var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<string>();
+
+        var hasher = new PasswordHasher<string>();
         var hashed = hasher.HashPassword(null, dto.Password);
 
         var account = new Account
@@ -49,13 +50,9 @@ public class AccountsController : ControllerBase
         _context.Accounts.Add(account);
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction(
-            nameof(GetById),
-            new { id = account.Id },
-            new { account.Id, account.Username }
-        );
+        return CreatedAtAction(nameof(GetById), new { id = account.Id }, new { account.Id, account.Username });
     }
-    
+
     [HttpGet("{id:int}")]
     [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> GetById(int id)
@@ -71,11 +68,11 @@ public class AccountsController : ControllerBase
         {
             account.Id,
             account.Username,
-            RoleName     = account.Role.Name,
+            RoleName   = account.Role.Name,
             account.EmployeeId
         });
     }
-    
+
     [HttpGet]
     [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> GetAll()
@@ -86,13 +83,13 @@ public class AccountsController : ControllerBase
             {
                 a.Id,
                 a.Username,
-                RoleName     = a.Role.Name,
+                RoleName   = a.Role.Name,
                 a.EmployeeId
             })
             .ToListAsync();
         return Ok(list);
     }
-    
+
     [HttpPut("{id:int}")]
     [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> Update(int id, [FromBody] CreateAccountDto dto)
@@ -111,9 +108,9 @@ public class AccountsController : ControllerBase
         if (employee == null)
             return NotFound("Employee not found.");
 
-        var role = await _context.Roles.SingleAsync(r => r.Name == "User"); 
+        var role = await _context.Roles.SingleAsync(r => r.Name == "User");
 
-        var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<string>();
+        var hasher = new PasswordHasher<string>();
         var hashed = hasher.HashPassword(null, dto.Password);
 
         account.Username     = dto.Username;
@@ -124,7 +121,7 @@ public class AccountsController : ControllerBase
         await _context.SaveChangesAsync();
         return NoContent();
     }
-    
+
     [HttpDelete("{id:int}")]
     [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> Delete(int id)
@@ -137,7 +134,7 @@ public class AccountsController : ControllerBase
         await _context.SaveChangesAsync();
         return NoContent();
     }
-    
+
     [HttpGet("me")]
     [Authorize(Policy = "UserOnly")]
     public async Task<IActionResult> GetMyAccount()
@@ -159,13 +156,39 @@ public class AccountsController : ControllerBase
         {
             account.Id,
             account.Username,
-            RoleName     = account.Role.Name,
-            Employee     = new
+            RoleName = account.Role.Name,
+            Employee = new
             {
                 account.Employee.Person.FirstName,
                 account.Employee.Person.LastName,
                 account.Employee.Person.Email
             }
         });
+    }
+
+    [HttpPut("me")]
+    [Authorize(Policy = "UserOnly")]
+    public async Task<IActionResult> UpdateMe([FromBody] UpdateOwnAccountDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var accountIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(accountIdClaim, out var id))
+            return Forbid();
+
+        var account = await _context.Accounts.FindAsync(id);
+        if (account == null)
+            return NotFound();
+
+        if (await _context.Accounts.AnyAsync(a => a.Username == dto.Username && a.Id != id))
+            return Conflict("Username already in use.");
+
+        var hasher = new PasswordHasher<string>();
+        account.Username     = dto.Username;
+        account.PasswordHash = hasher.HashPassword(null, dto.Password);
+
+        await _context.SaveChangesAsync();
+        return NoContent();
     }
 }
