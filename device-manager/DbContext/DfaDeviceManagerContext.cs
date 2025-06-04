@@ -21,6 +21,8 @@ public partial class DfaDeviceManagerContext : DbContext
     public virtual DbSet<Employee> Employees { get; set; }
     public virtual DbSet<Person> People { get; set; }
     public virtual DbSet<Position> Positions { get; set; }
+    public virtual DbSet<Role> Roles { get; set; }
+    public virtual DbSet<Account> Accounts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -128,6 +130,45 @@ public partial class DfaDeviceManagerContext : DbContext
                 .HasMaxLength(100)
                 .IsUnicode(false);
         });
+        
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.ToTable("Role");
+            entity.HasIndex(r => r.Name).IsUnique();
+            entity.Property(r => r.Name)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+
+            entity.HasData(
+                new Role { Id = 1, Name = "Admin" },
+                new Role { Id = 2, Name = "User" }
+            );
+        });
+        
+        modelBuilder.Entity<Account>(entity =>
+        {
+            entity.ToTable("Account");
+            entity.HasIndex(a => a.Username).IsUnique();
+            entity.Property(a => a.Username)
+                .HasMaxLength(150)
+                .IsUnicode(false)
+                .IsRequired();
+            entity.Property(a => a.PasswordHash)
+                .HasMaxLength(500)
+                .IsUnicode(false)
+                .IsRequired();
+
+            entity.HasOne(a => a.Role)
+                .WithMany(r => r.Accounts)
+                .HasForeignKey(a => a.RoleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(a => a.Employee)
+                .WithMany()                        // ← no "Accounts" collection on Employee
+                .HasForeignKey(a => a.EmployeeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
 
         OnModelCreatingPartial(modelBuilder);
     }
