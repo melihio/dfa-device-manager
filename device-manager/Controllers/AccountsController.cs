@@ -8,12 +8,12 @@ namespace dfa_device_manager.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AccountController : ControllerBase
+public class AccountsController : ControllerBase
 {
     private readonly DfaDeviceManagerContext _context;
     private readonly IConfiguration _config;
 
-    public AccountController(DfaDeviceManagerContext context, IConfiguration config)
+    public AccountsController(DfaDeviceManagerContext context, IConfiguration config)
     {
         _context = context;
         _config  = config;
